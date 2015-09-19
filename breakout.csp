@@ -1,0 +1,1326 @@
+          	.EQU KBD_CNTL,  	$000
+          	.EQU KBD_STAT,  	$000
+          	.EQU KBD_DATA,  	$001
+          	.EQU KBD_FLUSH, 	$40
+          	.EQU TIM_CNTL,      	$030
+          	.EQU TIM_STAT,      	$030
+          	.EQU TIM_VALUE,     	$031
+          	.EQU TIM_COUNT,     	$034
+        	.EQU INTERRUPT_ENA,           $80
+          	.EQU RESET_READY_BIT,         $40
+          	.EQU START_AFTER_LOAD,        $10
+          	.EQU ENABLE_RESET_AND_START,  $D0
+          	.EQU ENABLE_AND_RESET,        $C0
+
+
+          	.EQU CRT_BUFFER,    	$100
+          	.EQU BOTTOM_RIGHT,  	$313
+          	.EQU CRT_XREG,      	$314
+	.EQU CRT_YREG,      	$315
+          	.EQU CRT_CNTL,      	$316
+          	.EQU CRT_DATA,      	$317
+	.EQU CRT_ROWS,      	14
+          	.EQU CRT_COLS,      	38
+          	.EQU CLEAR_DISPLAY, 	$01
+	.EQU HOME,	$04
+	.EQU BELL,	$07
+
+
+          	.EQU PUT_NUM,       	$E00      ; MINI_OS JSRS
+          	.EQU GET_NUM,       	$E01
+	.EQU GET_STR,	$E04
+          	.EQU PUT_STR,       	$E05
+          	.EQU PUT_NL,        	$E06
+          	.EQU PUT_NUM2,      	$E07
+          	.EQU PUT_CHR,       	$E08
+
+
+          	.EQU TOP,	0
+	.EQU BOTTOM,	13
+	.equ MAX_RIGHT,	37
+	.equ MAX_PADDLE_X,	34
+	.equ MIN_LEFT, 	1
+	.equ LEFT_ARROW,	'K'
+	.equ RIGHT_ARROW,	'M'
+	.equ UP_ARROW,	'H'
+	.equ DOWN_ARROW,	'P'
+	.EQU LEFT,	0
+	.EQU RIGHT,	1
+	.equ a,	97
+	.equ b,	98
+	.EQU QUIT,	'x'
+	.equ CHANGE,	99
+	.EQU ENTER,	13 ; Enter key
+	.EQU SPACEBAR,	32
+	.EQU NOKEY,	'n'
+	.EQU PLAY_DELAY,	 1; # of timer iterations before tetromino moves
+	.EQU INTERMISSION_DELAY,	 10; # of timer iterations while Game Over shown
+
+	LDS#  $E00
+	CIE
+	clr	score
+	clr   lives
+
+	; showIntro();
+	jsr 	ShowIntro
+	; showIntro();
+
+	; startGame(&ballX, &ballY, &paddleX, &deltaX, &deltaY, score);
+	psh#	ballx
+	psh#  bally
+	psh#  padx
+	psh#  deltax
+	psh#  deltay
+	psh   score
+	jsr	StartGame
+	ads#	6
+	lda#  1
+	outb  crt_xreg
+	lda#  bell
+	outb  crt_data
+	; startGame(&ballX, &ballY, &paddleX, &deltaX, &deltaY, score);
+
+	LDA#	KEYISR
+	STA 	$FF8
+	LDA#	ENABLE_AND_RESET
+	OUTB 	KBD_CNTL
+	LDA   DELAY
+	OUTW  TIM_VALUE
+	LDA#	TIMERISR
+	STA 	$FFB		; SET-UP TIMER ISR
+	LDA#	ENABLE_RESET_AND_START
+	OUTB 	TIM_CNTL
+	SIE
+MAINLOOP:	NOP
+	JMP	MAINLOOP
+
+	;-------------------------------
+	;void showIntro()
+showIntro:	BGN#	0
+	psha
+	lda#	CLEAR_DISPLAY
+	outb	CRT_CNTL
+	psh#	intro1Len
+	psh#	intro1
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	psh#	intro2Len
+	psh#	intro2
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	psh#	intro3Len
+	psh#	intro3
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	psh#	intro4Len
+	psh#	intro4
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	psh#	intro5Len
+	psh#	intro5
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	psh#	intro6Len
+	psh#	intro6
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	psh#	intro7Len
+	psh#	intro7
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	psh#	intro8Len
+	psh#	intro8
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	psh#	intro9Len
+	psh#	intro9
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	psh#	intro10Len
+	psh#	intro10
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	psh#	intro11Len
+	psh#	intro11
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	lda#	KBD_FLUSH
+	outb	KBD_CNTL
+showIntro2:	inb	KBD_STAT
+	jeq	showIntro2	
+	inb	KBD_DATA
+	cma#	SPACEbar
+	jne   checkothers
+space:	lda#  3
+	sta   lives
+	jmp   finish
+checkothers:	cma#  a
+	jeq   EASY
+	cma#  b
+	jeq   hard
+	cma#  enter
+	lda#	CLEAR_DISPLAY
+	outb	CRT_CNTL
+	psh#	help1len
+	psh#	help1
+	jsr 	PUT_STR
+	ads#	2
+	jsr   put_nl
+	psh#	help2len
+	psh#	help2
+	jsr 	PUT_STR
+	ads#	2
+	jsr   put_nl
+	psh#	help3len
+	psh#	help3
+	jsr 	PUT_STR
+	ads#	2
+	psh#	help7len
+	psh#	help7
+	jsr 	PUT_STR
+	jsr   put_nl
+	ads#	2
+	psh#	help4len
+	psh#	help4
+	jsr 	PUT_STR
+	ads#	2
+	jsr   put_nl
+	psh#	help5len
+	psh#	help5
+	jsr 	PUT_STR
+	ads#	2
+	jsr   put_nl
+	jsr   put_nl
+	psh#	help6len
+	psh#	help6
+	jsr 	PUT_STR
+	ads#	2
+	jsr   put_nl
+	psh#	intro3Len
+	psh#	intro3
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	psh#	intro4Len
+	psh#	intro4
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	psh#	intro5Len
+	psh#	intro5
+	jsr 	PUT_STR
+	ads#	2
+	jsr	PUT_NL
+	Jne   showintro2
+	jmp   hard
+EASY:	lda#  5
+	sta   lives
+	jmp   finish
+Hard:         lda#  2
+	sta   lives
+finish:	popa
+	FIN#	0
+	rtn	; showIntro()
+
+	;---------------------------
+	;void StartGame()
+	.equ	ballxloc, 9
+	.equ  ballyloc, 8
+	.equ  paddlexloc, 7
+	.equ  deltaxloc, 6
+	.equ  deltayloc, 5
+	.equ  scoreloc, 4
+	.equ  screenx, 1
+	.equ  screeny, 0
+StartGame:  
+	BGN#	2
+	PSHA
+	PSHX
+	LDA#	PLAY_DELAY
+	STA	TIMER_CNT
+	LDA#	CLEAR_DISPLAY
+        	OUTB	CRT_CNTL	; CLEAR SCREEN
+	lda#	1
+	outb	CRT_XREG
+	lda#	1
+	outb	CRT_YREG
+	lda#	1
+	sta 	ScreenY	; y = 1
+	sta  ScreenX
+Screen1:	lda 	ScreenY
+	cma#	14
+	jge	Screen2	; y <= 14?
+	outb	CRT_YREG
+	lda#	1
+	outb	CRT_XREG
+	lda#	'|'
+	outb	CRT_DATA		; putChar("|", 0, y)
+MkBrick:	inc  ScreenX
+	lda  ScreenX
+	outb	CRT_XREG
+	lda#	'|'
+	outb	CRT_DATA
+	inc   ScreenX
+	lda  ScreenX
+	outb	CRT_XREG
+	lda#	'_'
+	outb	CRT_DATA
+	inc   ScreenX
+	lda  ScreenX
+	outb	CRT_XREG
+	lda#	'_'
+	outb	CRT_DATA
+	inc  ScreenX
+	lda  ScreenX
+	outb	CRT_XREG
+	lda#	'_'
+	outb	CRT_DATA
+	inc   ScreenX
+	lda  ScreenX
+	outb	CRT_XREG
+	lda#	'_'
+	outb	CRT_DATA
+	inc  ScreenX
+	lda  ScreenX
+	outb	CRT_XREG
+	lda#	'|'
+	outb	CRT_DATA
+	lda  ScreenX
+	cma#  38
+	jle   MkBrick
+	lda#	38
+	outb	CRT_XREG
+	lda#	'|'
+	outb	CRT_DATA		; putChar("|", 11, y)	
+	inc   ScreenY
+	jmp   Screen1
+Screen2:
+	psh#  8
+	jsr   random2
+	ads#  1
+
+	ada#  MAX_RIGHT
+	div#  2
+	sba#  4
+	sta* ! ballxloc	;*ballX = MAX_RIGHT / 2 - 4 + random2(8);
+	lda# 1
+	sta* ! ballYloc	;*ballY = 1;
+	sta* ! deltaYloc	;*deltaY = 1;
+	
+	psh#  2
+	jsr   random2
+	ads#  1
+	
+	mul#  2
+	sba#  1
+	sta* ! deltaXloc	;*deltaX = 1 -  2 * random2(1);
+	
+	lda#   Max_right
+	div#   2
+	sba#   2
+	sta* ! paddlexLoc	;*paddleX = MAX_RIGHT / 2 - 2;
+	
+	psh !  paddlexloc
+	psh#   '-'
+	jsr   showPaddle
+	ads#  2
+
+	lda#  0
+	outb  crt_xreg
+	
+	popx
+	popa
+	fin#	2
+	RTN	; startNewScreen()
+
+;-----------------------
+
+
+	;void showPaddle(int paddleLocation, char letter)
+
+	.equ   paddleLocation, 6
+	.equ   letter, 5
+	.equ   paddleLoc1, 2
+	.equ   paddleLoc2, 1
+	.equ   paddleLoc3, 0
+	
+showPaddle:	bgn#   3
+	pshA
+	lda* ! paddleLocation	
+	;jsr   put_num		; should print 16
+	ada#   1
+	sta  ! paddleLoc1
+	;jsr   put_num
+	ada#   1
+	sta  ! paddleLoc2
+	;jsr   put_num
+	ada#   1
+	sta  ! paddleLoc3
+	;jsr   put_num
+	
+	psh* !  paddleLocation
+	psh#   12
+	psh !  letter
+	jsr    putChar
+	ads#   3
+	
+	psh !   paddleLoc1
+              psh#   12
+              psh !  letter
+	jsr    putChar
+	ads#   3
+	
+	psh !  paddleLoc2
+              psh#   12
+              psh ! letter
+	jsr    putChar
+	ads#   3
+
+	psh !  paddleLoc3
+              psh#   12
+              psh ! letter
+	jsr    putChar
+	ads#   3
+
+	popA
+	fin#   3
+	rtn
+
+;-----------------------
+; void putChar(int x, int y, char c)
+	.EQU	putCharX, 5
+	.EQU	putCharY, 4
+	.EQU	putCharC, 3
+	.EQU	putCharTemp, 0
+
+putChar:	bgn#	1
+	psha
+	lda !	putCharY
+	mul#	38
+	ada !	putCharX
+	ada#	CRT_BUFFER
+	sta !	putCharTemp
+	lda !	putCharC
+	outb* ! putCharTemp
+	popa
+	fin#	1
+	rtn
+;-----------------------
+;-(void) MovePaddle(dir, padLoc)
+	.equ  dir, 4
+	.equ  padLoc, 3
+	.equ  localVar, 0
+
+MovePaddle:  	bgn# 1
+	PSHA
+	lda* !  padLoc
+	sta  !  localVar
+
+	psh ! padLoc
+	psh#  ' '
+	jsr   showPaddle
+	ads#  2
+	
+	lda ! dir
+	;jsr   put_num
+	cma#  75	;if ((key == LEFT) && (*x > 1))
+	Jne   else
+	
+	lda !  localVar	;(*x > 1)
+	cma#  1
+	jle   else
+if:
+	lda !  localVar
+	sba#   1
+	sta !  localVar
+	jmp    shw
+
+
+else:	lda ! dir
+	cma#  77
+	jne   shw
+
+	lda ! localVar
+	cma#   33
+	jge    shw	
+
+	lda ! localVar
+	ada#   1
+	sta ! localVar
+
+shw:	psh# ! locaLVar
+	psh#  '-'
+	jsr   showPaddle
+	ads#  2
+
+	lda ! localVar
+	sta* ! padLoc
+	
+	
+	POPA
+	fin# 1
+	RTN
+;-------------------------------
+KEYISR:  	PSHA
+              lda#	0
+              outb	KBD_CNTL
+              INB 	KBD_DATA
+              CMA#	QUIT
+              JNE	KEY1
+              HLT		; HALT IF x
+
+KEY1:	cma#  $1B	; escape so cursor?
+              jne	Keydone            ; irrelevant key so skip
+KEY2:	inb   kbd_data
+              cma#	LEFT_ARROW	; if left arrow
+              jeq	KeyLeft
+              cma#	RIGHT_ARROW	; if right arrow
+              jeq   KeyRight
+	cma#  UP_ARROW
+	jeq   changean
+	cma#  down_arrow
+	jeq   downAr
+	jne   keydone
+	
+keyLeft:     	psha
+	psh#  padX
+	jsr   movePaddle
+	ads#  2
+              jmp   keydone
+
+keyRight:     psha
+              psh#  padX
+	jsr   movePaddle
+	ads#  2
+	jmp   keydone
+changean:	neg   deltax
+	jmp   keydone
+downAr:	jsr   fireBullet
+Keydone:      lda#	INTERRUPT_ENA
+              outb	KBD_CNTL
+              POPA
+              IRTN		; KeyISR()
+;-----------------------
+; int random(int max) leaves result in accumulator!
+	.equ	random2Max, 2
+	
+random2:	bgn#	0
+	lda#  1
+	mul#	2789
+	ada#	1997
+	mod#	2048
+	;sta	SEED
+	inc !	random2Max
+	mod !	random2Max
+	fin#	0
+	rtn
+;-----------------------
+	; int getChar(int x, int y)
+	.equ	Xchar, 4
+	.equ	Ychar, 3
+	.equ	Temp, 0
+GetChar:	BGN#	1
+	lda !	Ychar
+	mul#	38
+	ada !	Xchar
+	ada#	CRT_BUFFER
+	sta !	Temp
+	inb* ! Temp
+	fin#	1
+	rtn	; GetChar()
+
+;--------------------------------	
+	; void GetNewBallPosition(int *ballX, int *ballY, int *deltaX, int *deltaY)
+	.equ  ballXL, 5
+	.equ  ballYL, 4
+	.equ	delX, 3
+	.equ	delY, 2
+
+
+GetBall:	BGN#  0
+	psha
+	pshx
+
+	; *ballY += *deltaY;
+	lda* ! ballYl
+	ada* ! dely
+	sta* ! ballyl
+
+	; *ballX += *deltaX;
+
+	lda* ! ballxl
+	ada* ! delx
+	sta* ! ballxl
+
+	; if(*ballY == BOTTOM  && crt[*ballY][*ballX] == '-')
+	lda* ! ballyl
+	cma#   12
+	jne    else1
+
+nextCheck:	
+	;crt[*ballY][*ballX] == '-' from previous if
+	psh* ! BallXl 
+	psh* ! BallYl
+	jsr	getChar
+	ads#	2
+	cma#   '-'
+	jne    else1
+
+if1:	; *ballY = BOTTOM - 1;
+	lda#   11
+	sta* ! ballyl
+	; *deltaY = -1;
+	neg* ! dely
+	jmp    NextIF
+
+else1:	; if(*ballY < 0)
+	lda* ! ballyl
+	cma#   0
+	jlt    doIt
+	jmp    nextif
+
+doit:	; *ballY = 0;
+	lda#   0
+	sta* ! ballYl
+	; *deltaY = 1;
+	lda#   1
+	sta* ! delY
+
+NEXTIF:	; if(*ballX == 0)
+	lda* !  ballxl
+	cma#   0
+	jne    nextElse
+
+block:	; *ballX = 2;
+	lda#   2
+	sta* ! ballxL
+	; *deltaX = 1;
+	lda#   1
+	sta* ! delx
+	jmp    done
+
+nextELSE:     ; if(*ballX == MAX_RIGHT)
+	lda* !  ballxl
+	cma#   37
+	jne    done
+
+	; *ballX = MAX_RIGHT - 2;
+passed:	lda#   35
+	sta* ! ballXl
+	; *deltaX = -1;
+	neg* ! delx
+	
+
+done:	popx
+	popa
+	fin#  0
+	rtn
+
+;--------------------------------
+;int Play(int *score, int *ballX, int *ballY, int *deltaX, int *deltaY,int *lives)
+	.equ	scoreLocl,  9
+	.equ	ballXlocl, 8
+	.equ	ballylocl, 7
+	.equ	deltaXlocl, 6
+	.equ	deltaYlocl, 5
+	.equ	livesl, 4
+	.equ  i, 1
+	.equ  square, 0
+
+play:	bgn#  2
+	; putChar(*ballX, *ballY, ' ')
+	; putChar(*ballX, *ballY, ' ');
+	psh* !  ballxlocl
+	psh* !  ballylocl
+	psh#  ' '
+	jsr   putChar
+	ads#  3
+	
+	lda* ! ballylocl
+	cma#  1
+	jeq   mov
+	psh#  12
+	psh#  11
+	psh#  ' '
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  10
+	psh#  ' '
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  9
+	psh#  ' '
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  8
+	psh#  ' '
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  7
+	psh#  ' '
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  6
+	psh#  ' '
+	jsr   putChar
+	ads#  3	
+	psh#  12
+	psh#  5
+	psh#  ' '
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  4
+	psh#  ' '
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  3
+	psh#  ' '
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  2
+	psh#  ' '
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  1
+	psh#  ' '
+	jsr   putChar
+	ads#  3	
+
+
+mov:	; calling getBall
+	; getNewBallPosition(ballX, ballY, deltaX, deltaY);
+	psh !  ballxlocl
+	psh !  ballylocl
+	psh !  deltaXlocl
+	psh !  deltaYlocl
+	jsr    GetBall
+	ads#  4
+	
+	psh* !  BallXlocl 	; checking to see if hit brick.
+	psh* !  BallYlocl
+	jsr	getChar
+	ads#	2
+	cma#   '_'
+	jeq    for
+	cma#   '|'
+	jne    checkBreak
+
+	
+for:	lda* ! Ballxlocl
+	cma#   7
+	jlt   drop1
+	cma#   14
+	jlt   drop2
+	cma#   21
+	jlt   drop3
+	cma#   28
+	jlt   drop4
+	cma#   31
+	jlt   drop5
+	cma#   38
+	jlt   drop6
+	hlt
+drop1:	psh#   1
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   2
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   3
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   4
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   5
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   6
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	jmp    inc
+drop2:
+	psh#   7
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   8
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   9
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   10
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   11
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   12
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	jmp    inc
+drop3:
+	psh#   13
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   14
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   15
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   16
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   17
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   18
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	jmp    inc
+drop4:
+	psh#   19
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   20
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   21
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   22
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   23
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   24
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	jmp    inc
+drop5:
+	psh#   25
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   26
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   27
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   28
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   29
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   30
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	jmp    inc
+drop6:
+	psh#   31
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   32
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   33
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   34
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   35
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	psh#   36
+	psh* ! ballylocl
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+	jmp    inc
+
+
+inc:	inc* ! ballylocl
+	lda#   1
+	sta* ! deltaylocl
+	inc* ! scorelocl
+	lda#   bell
+	outb   crt_xreg
+	lda#  bell
+	outb  crt_data
+	
+	lda#  8
+	outb  crt_yreg
+	lda#  16
+	outb  crt_xreg
+	psh#  scorepromptlen
+	psh#  scoreprompt
+	jsr   put_str
+	ads#  2
+	lda* ! scorelocl
+	jsr   put_num
+	lda#  100
+	outb  crt_xreg
+
+	
+	; if(*score % 6 == 0)		; AKA all bricks are broken
+	; return 1
+	lda* !  scorelocl
+	cma#   6
+	jeq    GameWon
+	jmp    checkBreak
+gameWon:	
+	
+	lda#  3
+	outb  crt_yreg
+	lda#  12
+	outb  crt_xreg
+	psh#   conlen
+	psh#   congrats
+	jsr    put_str
+	ads#   2
+	lda#  4
+	outb  crt_yreg
+	lda#  12
+	outb  crt_xreg
+	psh#   victorylen
+	psh#   victory
+	jsr    put_str
+	ads#   2
+	lda#   100
+	outb   crt_xreg
+	lda#   bell
+	outb   crt_data
+	hlt	
+
+
+checkBreak:	
+	lda* ! ballylocl
+	cma#  0
+	jeq   gamewon
+
+	; if(*ballY > BOTTOM)
+	lda* ! ballylocl
+	cma#  13
+	jlt   print
+	dec* ! livesl
+	lda#   1
+	jmp    done1
+
+	; putChar(*ballX, *ballY, BALL_CHR);	
+print:	psh* !  ballxlocl
+	psh* !  ballylocl
+	psh#  '0'
+	jsr   putChar
+	ads#  3
+
+	
+	lda* ! scorelocl
+	cma#  1
+	jlt   contin
+	lda* ! ballylocl
+	cma#  6
+	jne   contin	
+delete:	lda#	8
+	outb	CRT_YREG
+	lda#	16
+	outb	CRT_XREG
+	psh#	blankLen
+	psh#	blank
+	jsr	put_str		
+	ads#	2
+	lda#  100
+	outb  crt_xreg
+
+contin:
+	lda#  0
+done1:	
+	fin#  2
+	rtn
+
+	;----------------------------------
+
+
+TIMERISR: 	PSHA
+          	INC   timer
+          	lda	timer
+	cma	TIMER_CNT
+	jlt	TIMER_DONE
+	cma#	INTERMISSION_DELAY
+	jne	tISR1
+	lda#	PLAY_DELAY		; just after intermission
+	sta	TIMER_CNT
+
+	lda#	5
+	outb	CRT_YREG
+	lda#	16
+	outb	CRT_XREG
+	psh#	blankLen
+	psh#	blank
+	jsr	put_str		
+	ads#	2
+	lda#	6
+	outb	CRT_YREG
+	lda#	16
+	outb	CRT_XREG
+	psh#	blankLen
+	psh#	blank
+	jsr	put_str		
+	ads#	2
+	lda#  0
+	outb  crt_yreg
+	lda#	7
+	outb	CRT_YREG
+	lda#	16
+	outb	CRT_XREG
+	psh#	blankLen
+	psh#	blank
+	jsr	put_str		
+	ads#	2
+	lda#  100
+	outb  crt_xreg
+	
+	lda#  12
+	sta   ballx
+	lda#  3
+	sta   bally
+	psh#  score
+	psh#	ballx
+	psh#  bally
+	psh#  deltax
+	psh#  deltay
+	psh#  lives
+	jsr   play
+	ads#  6
+	jmp	tISR2	; After intermission_DELAY return to PLAY_DELAY
+
+tISR1:	psh#  score
+	psh#	ballx
+	psh#  bally
+	psh#  deltax
+	psh#  deltay
+	psh#  lives
+	jsr   play
+	ads#  6
+
+	cma#	1
+	jne	tISR2  ; 1 == can move
+	jsr	intermission
+tISR2:	clr	Timer	; reset timer count
+TIMER_DONE: 	LDA#  ENABLE_AND_RESET
+          	OUTB  TIM_CNTL
+          	POPA
+          	IRTN		; END OF TIMERISR
+
+	;--------------------
+	;void intermission()
+intermission:	bgn#	0
+	psha
+	lda   lives
+	cma#  0
+	jgt   alive
+
+	lda#	5
+	outb	CRT_YREG
+	lda#	16
+	outb	CRT_XREG
+	psh#	gameOLen
+	psh#	gameOPrompt
+	jsr	put_str		; mvaddstr(4, 15, "Game Over ... "
+	ads#	2
+	lda#  6
+	outb  crt_yreg
+	lda#  16
+	outb  crt_xreg
+	psh#  scorepromptlen
+	psh#  scoreprompt
+	jsr   put_str
+	ads#  2
+	lda   score
+	jsr   put_num
+	lda#  7
+	outb  crt_yreg
+	lda#  16
+	outb  crt_xreg
+	psh#  liveslen
+	psh#  livesprompt
+	jsr   put_str
+	ads#  2
+	lda   lives
+	jsr   put_num
+	lda#  0
+	outb  crt_yreg
+	hlt
+alive:	lda#  6
+	outb  crt_yreg
+	lda#  16
+	outb  crt_xreg
+	psh#  scorepromptlen
+	psh#  scoreprompt
+	jsr   put_str
+	ads#  2
+	lda   score
+	jsr   put_num
+	lda#  7
+	outb  crt_yreg
+	lda#  16
+	outb  crt_xreg
+	psh#  liveslen
+	psh#  livesprompt
+	jsr   put_str
+	ads#  2
+	lda   lives
+	jsr   put_num
+	lda#	INTERMISSION_DELAY
+	sta	TIMER_CNT  ;while(advanceTime(10000)); // show Game Over for 5 seconds
+	lda#	0
+	outb	CRT_XREG		; move cursor off screen
+	popa
+	fin#	0
+	rtn	
+
+;--------------------------------
+
+FireBullet:	BGN#  0
+	psha
+	pshx
+
+	psh#  12
+	psh#  11
+	psh#  '^'
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  10
+	psh#  '^'
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  9
+	psh#  '^'
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  8
+	psh#  '^'
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  7
+	psh#  '^'
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  6
+	psh#  '^'
+	jsr   putChar
+	ads#  3	
+	psh#  12
+	psh#  5
+	psh#  '^'
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  4
+	psh#  '^'
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  3
+	psh#  '^'
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  2
+	psh#  '^'
+	jsr   putChar
+	ads#  3
+	psh#  12
+	psh#  1
+	psh#  '^'
+	jsr   putChar
+	ads#  3	
+
+	psh#   12 	; checking to see if hit brick.
+	psh#   0
+	jsr	getChar
+	ads#	2
+	cma#   '|'
+	jeq    addDel
+	jmp    gone
+addDel:	psh#   7
+	psh#   0
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+
+	psh#   8
+	psh#   0
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+
+	psh#   9
+	psh#   0
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+
+	psh#   10
+	psh#   0
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+
+	psh#   11
+	psh#   0
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+
+	psh#   12
+	psh#   0
+	psh#   ' '
+	jsr    putChar
+	ads#   3
+
+	inc    score
+	
+gone:	popx
+	popa
+	FIN#  0
+	rtn
+
+;--------------------------------
+	.equ  @, $500
+Play_Speed:	.word 2	
+TIMER_CNT:	.WORD	PLAY_DELAY
+SEED:	.WORD	0
+KEY:	.WORD	
+DELAY:    	.WORD 2000
+TIMER:	.WORD 0
+score:	.word	
+lives:	.word 
+intro1:	.char '      Welcome to Breakout!!', intro1Len
+intro2:	.char '          Main Menu', intro2Len
+intro3:	.char '1)a = Easy (3 Lives)    ', intro3Len
+intro4:  	.char '2)SpaceBar = Regular (5 Lives)   ', intro4Len
+intro5:  	.char '3)b = Hard (2 Lives)   ', intro5Len
+intro6:  	.char 'Features:', intro6Len
+intro7:  	.char '1)Game makes a sound after a hit', intro7Len
+intro8:  	.char '2)Current score shown after a hit', intro8Len
+intro9:  	.char '3)Down Arrow fires a vertical bullet', intro9Len
+intro10:  	.char '4)Up Arrow changes ball angle', intro10Len
+intro11:  	.char '5)Hit Enter to view game tips!', intro11Len
+scorePrompt:	.char 'Score:', scorePromptLen
+gameOPrompt:	.char 'Game Over', gameOLen
+blank:	.char '                ', blankLen
+livesPrompt:   .char 'Lives:', liveslen
+help1:	.char '            Help Page',help1len
+help2:	.char '1)Hit left arrow to move paddle left',help2len
+help3:	.char '2)Hit right arrow to move paddle right',help3len
+help7:	.char '3)Hit up arrow to change the angle',help7len
+help4:	.char '4)WIN by getting out or',help4len
+help5:	.char '5)WIN by breaking all bricks!',help5len
+help6:	.char '--------------------------------------',help6len
+Victory:	.char ' You Brokeout!', victorylen
+congrats:	.char 'Contratulations!', conlen
+padX:	.word 
+padY:	.word 
+ballx:	.word
+bally:	.word
+deltax:	.word
+deltay:	.word
